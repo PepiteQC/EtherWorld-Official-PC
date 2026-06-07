@@ -1,41 +1,50 @@
-// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [react()],
+  // ✅ Base pour GitHub Pages
+  base: '/EtherWorld-Official-PC/',
+
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+
   build: {
-    // ── Code splitting intelligent ──
+    target: 'esnext',
+
+    // ✅ esbuild (pas terser) — compatible Vite 8
+    minify: 'esbuild',
+
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Sépare Three.js dans son propre fichier (gros)
-          three: ['three'],
-          // Sépare React Three Fiber
-          r3f: ['@react-three/fiber', '@react-three/drei'],
-          // Sépare Zustand
-          state: ['zustand'],
+        // ✅ FONCTION — obligatoire dans Vite 8 / Rolldown
+        manualChunks(id: string) {
+          if (id.includes('node_modules/three'))         return 'three'
+          if (id.includes('@react-three/fiber'))         return 'r3f'
+          if (id.includes('@react-three/drei'))          return 'drei'
+          if (id.includes('@react-three/rapier'))        return 'rapier'
+          if (id.includes('zustand'))                    return 'state'
+          if (id.includes('node_modules'))               return 'vendor'
         },
       },
     },
-    // ── Taille cible ──
-    target: 'esnext',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,      // Enlève les console.log en prod
-        drop_debugger: true,
-      },
-    },
-    // ── Préchargement ──
-    modulePreload: {
-      polyfill: true,
-    },
-    // ── Alerte si > 1.5 MB ──
-    chunkSizeWarningLimit: 1500,
+
+    chunkSizeWarningLimit: 2000,
   },
-  // ── Optimisation du dev server ──
+
   optimizeDeps: {
-    include: ['three', '@react-three/fiber', '@react-three/drei'],
+    include: [
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+      'zustand',
+    ],
+  },
+
+  server: {
+    host: true,
+    port: 5173,
   },
 })
