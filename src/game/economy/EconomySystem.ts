@@ -1255,7 +1255,7 @@ export const JOB_CATALOG: Readonly<JobConfig[]> = [
       },
       {
         id:           'task_launder_money',
-        name:         'Blanchir de l'argent',
+        name:         'Blanchir de l\'argent',
         description:  'Fais passer les gains par un commerce de façade',
         reward:       1500,
         difficulty:   7,
