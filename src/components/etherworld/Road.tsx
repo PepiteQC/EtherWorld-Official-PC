@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import { PORTNEUF_ROADS, TOWNS } from "../utils/roadNetwork";
+import { PORTNEUF_ROADS, TOWNS } from "../../utils/roadNetwork";
 
 export default function Road() {
   const roadMeshes = useMemo(() => {

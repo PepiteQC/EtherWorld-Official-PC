@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { ObjectCategory } from '../store';
+import type { ObjectCategory } from '../lib/etherworld/store';
 
 // ═══════════════════════════════════════════════════════════════
 //  TYPES

@@ -1,5 +1,5 @@
-import { canStartJob, getJobCooldownSec, type ActiveJob } from "../store/gameState";
-import type { DoorZone } from "../data/quebecBuildings";
+import { canStartJob, getJobCooldownSec, type ActiveJob } from "../../store/gameState";
+import type { DoorZone } from "../../data/quebecBuildings";
 
 interface HUDProps {
   speed: number;

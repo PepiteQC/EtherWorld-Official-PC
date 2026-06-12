@@ -1,30 +1,41 @@
 /**
  * src/buildings/hotel/modules/room/HotelRoomModule.tsx
- * 
- * Reusable, modular 3D room for Hôtel.
- * 
- * - Architectural structure only (walls, floor, ceiling, door frame)
- * - Decorative visual only (colors, simple trim)
- * - Door + safe placeholders (safe in every room)
- * - Stable ID passed via userData for raycast / interaction / access
- * - NEVER codes a full room in a giant component
- * 
- * Anti-casse:
- * - Purely reusable module
- * - Architectural dimensions from registry (not hardcoded here)
- * - No direct lock commands
- * - Decorative params separate
+ * Chambre 3D modulaire avec architecture + sécurité temps réel.
  */
 
-import { memo } from 'react';
-import * as THREE from 'three';
-import type { RoomBase, DoorBase } from '../../../shared/types';
+import { memo, useMemo } from 'react'
+import * as THREE from 'three'
+import type { DoorBase, RoomBase } from '../../../shared/types'
+import { HotelSecurityDoor } from '../../security/HotelSecurityDoor'
+import { HotelRoomArchitecture } from './HotelRoomArchitecture'
 
 interface HotelRoomModuleProps {
-  room: RoomBase;
-  door?: DoorBase;
-  position?: [number, number, number]; // world or parent-relative
-  onDoorClick?: (roomId: string) => void;
+  room: RoomBase
+  door?: DoorBase
+  position?: [number, number, number]
+  onDoorClick?: (roomId: string) => void
+}
+
+function createWallTexture(accent: string) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#332820'
+  ctx.fillRect(0, 0, 256, 256)
+  for (let i = 0; i < 700; i++) {
+    const v = 38 + Math.random() * 18
+    ctx.fillStyle = `rgba(${v + 20},${v + 12},${v + 8},.045)`
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2)
+  }
+  ctx.strokeStyle = accent + '22'
+  ctx.strokeRect(8, 8, 240, 240)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.wrapS = THREE.RepeatWrapping
+  tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(2, 2)
+  tex.needsUpdate = true
+  return tex
 }
 
 export const HotelRoomModule = memo(function HotelRoomModule({
@@ -33,64 +44,45 @@ export const HotelRoomModule = memo(function HotelRoomModule({
   position = [0, 0, 0],
   onDoorClick,
 }: HotelRoomModuleProps) {
-  const { architectural, id, side, hasSafe } = room;
+  const { architectural, id, side } = room
+  const roomW = architectural.roomWidth
+  const roomD = architectural.roomDepth
+  const roomH = architectural.height
+  const isLeft = side === 'left'
+  const accent = isLeft ? '#22c55e' : '#38bdf8'
 
-  const roomW = architectural.roomWidth;
-  const roomD = architectural.roomDepth;
-  const roomH = architectural.height;
+  const wallTex = useMemo(() => createWallTexture(accent), [accent])
 
-  const isLeft = side === 'left';
-
-  // Wall material (architectural + light decorative)
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: '#3a2a22',
-    roughness: 0.82,
-    metalness: 0.05,
-  });
-  const floorMat = new THREE.MeshStandardMaterial({
-    color: '#c8c0b4',
-    roughness: 0.7,
-  });
-  const ceilingMat = new THREE.MeshStandardMaterial({
-    color: '#1e2024',
-    roughness: 0.9,
-  });
-
-  const doorFrameMat = new THREE.MeshStandardMaterial({
-    color: '#2a2520',
-    roughness: 0.6,
-    metalness: 0.1,
-  });
-
-  const safeMat = new THREE.MeshStandardMaterial({
-    color: '#444444',
-    roughness: 0.4,
-    metalness: 0.6,
-  });
-
-  const handleDoorClick = () => {
-    if (onDoorClick) onDoorClick(id);
-  };
+  const doorPosition: [number, number, number] = [
+    isLeft ? -roomW / 2 + 0.06 : roomW / 2 - 0.06,
+    0,
+    0,
+  ]
+  const doorRotation: [number, number, number] = [0, isLeft ? Math.PI / 2 : -Math.PI / 2, 0]
 
   return (
-    <group position={position} userData={{ roomId: id, buildingId: 'hotel_main', type: 'hotel_room' }}>
-      {/* Floor (architectural) */}
-      <mesh
-        position={[0, 0.01, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        receiveShadow
-      >
+    <group
+      position={position}
+      userData={{
+        roomId: id,
+        buildingId: 'hotel_main',
+        type: 'hotel_room',
+        realtimeSecurity: !!door,
+      }}
+    >
+      {/* Floor */}
+      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[roomW, roomD]} />
-        <primitive object={floorMat} attach="material" />
+        <meshStandardMaterial color="#c8c0b4" roughness={0.62} metalness={0.05} />
       </mesh>
 
       {/* Ceiling */}
       <mesh position={[0, roomH, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[roomW, roomD]} />
-        <primitive object={ceilingMat} attach="material" />
+        <meshStandardMaterial color="#171923" roughness={0.9} />
       </mesh>
 
-      {/* Back wall (corridor side for left rooms, opposite for right) */}
+      {/* Corridor wall */}
       <mesh
         position={[isLeft ? -roomW / 2 + 0.01 : roomW / 2 - 0.01, roomH / 2, 0]}
         rotation={[0, isLeft ? Math.PI / 2 : -Math.PI / 2, 0]}
@@ -98,84 +90,46 @@ export const HotelRoomModule = memo(function HotelRoomModule({
         receiveShadow
       >
         <planeGeometry args={[roomD, roomH]} />
-        <primitive object={wallMat} attach="material" />
+        <meshStandardMaterial map={wallTex} color="#3a2a22" roughness={0.82} />
       </mesh>
 
-      {/* Side walls */}
-      <mesh position={[0, roomH / 2, -roomD / 2 + 0.01]} castShadow receiveShadow>
-        <planeGeometry args={[roomW, roomH]} />
-        <primitive object={wallMat} attach="material" />
-      </mesh>
-      <mesh position={[0, roomH / 2, roomD / 2 - 0.01]} castShadow receiveShadow>
-        <planeGeometry args={[roomW, roomH]} />
-        <primitive object={wallMat} attach="material" />
+      {/* Outer wall */}
+      <mesh
+        position={[isLeft ? roomW / 2 - 0.01 : -roomW / 2 + 0.01, roomH / 2, 0]}
+        rotation={[0, isLeft ? -Math.PI / 2 : Math.PI / 2, 0]}
+        castShadow
+        receiveShadow
+      >
+        <planeGeometry args={[roomD, roomH]} />
+        <meshStandardMaterial map={wallTex} color="#302a2a" roughness={0.84} />
       </mesh>
 
-      {/* Door frame (architectural opening) */}
+      {/* Back/front walls */}
+      {[-roomD / 2 + 0.01, roomD / 2 - 0.01].map((z) => (
+        <mesh key={z} position={[0, roomH / 2, z]} castShadow receiveShadow>
+          <planeGeometry args={[roomW, roomH]} />
+          <meshStandardMaterial map={wallTex} color="#342b25" roughness={0.84} />
+        </mesh>
+      ))}
+
+      {/* Window on outer wall */}
+      <mesh position={[isLeft ? roomW / 2 - 0.03 : -roomW / 2 + 0.03, roomH / 2 + 0.25, roomD * 0.1]} rotation={[0, isLeft ? Math.PI / 2 : -Math.PI / 2, 0]}>
+        <boxGeometry args={[2.15, 1.25, 0.045]} />
+        <meshStandardMaterial color="#1e3a5f" emissive="#38bdf8" emissiveIntensity={0.16} metalness={0.45} roughness={0.14} transparent opacity={0.74} />
+      </mesh>
+
+      <HotelRoomArchitecture room={room} roomW={roomW} roomD={roomD} roomH={roomH} />
+
       {door && (
-        <group
-          position={[
-            isLeft ? -roomW / 2 + 0.02 : roomW / 2 - 0.02,
-            door.architectural.doorHeight / 2,
-            door.position[2],
-          ]}
-          rotation={[0, door.rotationY, 0]}
-          onClick={handleDoorClick}
-          userData={{ doorId: door.id, lockId: door.lockId, type: 'hotel_door' }}
-        >
-          {/* Simple frame */}
-          <mesh>
-            <boxGeometry args={[0.12, door.architectural.doorHeight + 0.1, door.architectural.doorWidth + 0.1]} />
-            <primitive object={doorFrameMat} attach="material" />
-          </mesh>
-
-          {/* Door leaf (visual only for now — animated in future connector) */}
-          <mesh
-            position={[0, 0, 0]}
-            onClick={handleDoorClick}
-            userData={{ interactive: true, roomId: id }}
-          >
-            <boxGeometry args={[0.08, door.architectural.doorHeight, door.architectural.doorWidth]} />
-            <meshStandardMaterial color="#3a2a22" roughness={0.7} />
-          </mesh>
-        </group>
+        <HotelSecurityDoor
+          room={room}
+          door={door}
+          position={doorPosition}
+          rotation={doorRotation}
+          onGranted={(roomId) => onDoorClick?.(roomId)}
+          onDenied={(roomId) => console.warn(`[HotelRoomModule] Access denied: ${roomId}`)}
+        />
       )}
-
-      {/* Safe (every room) — anchored, no code in client for opening yet */}
-      {hasSafe && (
-        <group
-          position={[roomW * 0.28, 0.9, roomD * 0.32]}
-          userData={{ safeId: `${id}_s01`, roomId: id, type: 'hotel_safe' }}
-        >
-          <mesh castShadow>
-            <boxGeometry args={[0.55, 0.55, 0.45]} />
-            <primitive object={safeMat} attach="material" />
-          </mesh>
-          {/* Simple digital keypad visual (no real input) */}
-          <mesh position={[0.29, 0.15, 0.23]}>
-            <boxGeometry args={[0.08, 0.18, 0.02]} />
-            <meshStandardMaterial color="#111111" emissive="#112211" emissiveIntensity={0.1} />
-          </mesh>
-        </group>
-      )}
-
-      {/* Basic bed placeholder (decorative only) */}
-      <group position={[0, 0.45, -roomD * 0.18]}>
-        <mesh castShadow>
-          <boxGeometry args={[1.8, 0.6, 2.4]} />
-          <meshStandardMaterial color="#2a2520" roughness={0.8} />
-        </mesh>
-        <mesh position={[0, 0.35, 0]}>
-          <boxGeometry args={[1.7, 0.25, 2.2]} />
-          <meshStandardMaterial color="#4a3a30" roughness={0.9} />
-        </mesh>
-      </group>
-
-      {/* Simple window (decorative) on outer wall */}
-      <mesh position={[0, roomH / 2 + 0.3, roomD / 2 - 0.02]} castShadow>
-        <boxGeometry args={[2.2, 1.4, 0.04]} />
-        <meshStandardMaterial color="#1a2535" metalness={0.6} roughness={0.2} transparent opacity={0.75} />
-      </mesh>
     </group>
-  );
-});
+  )
+})

@@ -18,9 +18,11 @@ import Sky from './Sky'
 import CinematicIntro from './CinematicIntro'
 import InteriorScene from './InteriorScene'
 import EtherWorldCity from './EtherWorldCity'
-import { writeSave, type SaveData } from '../hooks/useSaveSystem'
-import { getBuildingDoors, type DoorZone, type BuildingDef } from '../data/quebecBuildings'
-import { startJob, getState as getGameState } from '../store/gameState'
+import WorldBeef from './WorldBeef'
+import { CityRuntime } from '../world/city/CityRuntime'
+import { writeSave, type SaveData } from '../../hooks/useSaveSystem'
+import { getBuildingDoors, type DoorZone, type BuildingDef } from '../../data/quebecBuildings'
+import { startJob, getState as getGameState } from '../../store/gameState'
 
 // ─────────────────────────────────────────────
 // CONSTANTS
@@ -371,6 +373,14 @@ function Scene({
 
       {/* ── EtherWorld City ── */}
       <EtherWorldCity />
+
+      {/* ── BEEF CONNECTÉ: composants 3D secondaires branchés au monde principal */}
+      <WorldBeef />
+
+      {/* ── Runtime ville: branche CITY_BUILDINGS + MODEL_DEFS au monde EtherWorld */}
+      <group position={[0, 0, 900]}>
+        <CityRuntime />
+      </group>
 
       {/* ── Cinématique ── */}
       {!cinematicDone && <CinematicIntro onComplete={onCinematicComplete} />}

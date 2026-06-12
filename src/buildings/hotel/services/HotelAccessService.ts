@@ -1,73 +1,80 @@
 /**
  * src/buildings/hotel/services/HotelAccessService.ts
- * 
- * Hotel-specific access service.
- * 
- * Uses LockSimulator exclusively while ACCESS_SIMULATOR_ONLY = true.
- * 
- * Anti-casse:
- * - Never calls real hardware from browser.
- * - Immutable journal via simulator.
- * - Separate from dépanneur.
- * - Future: will proxy to Cloud Function when real locks enabled.
+ * Service d'accès hôtel temps réel.
+ *
+ * Browser/dev:
+ * - utilise HotelRealtimeSecurity (BroadcastChannel + localStorage)
+ *
+ * Production future:
+ * - mêmes payloads, mais proxy Cloud Functions/Firebase Admin.
  */
 
-import { isAccessSimulatorOnly } from '../../shared/featureFlags';
-import { lockSimulator, type LockAttemptOptions, type LockAttemptResult } from '../../../systems/access-control/simulator/LockSimulator';
-import type { RoomId, DoorId } from '../../shared/types';
+import type { DoorId, LockId, RoomId } from '../../shared/types'
+import { makeAccessAttempt, hotelRealtimeSecurity } from '../security/HotelRealtimeSecurity'
+import type { HotelAccessMethod, HotelAccessResult } from '../security/HotelSecurityTypes'
 
 export interface HotelAccessRequest {
-  roomId: RoomId;
-  doorId: DoorId;
-  method: 'keycard' | 'keypad' | 'connected_app';
-  actorId?: string;
-  code?: string; // simulation only
+  roomId: RoomId
+  doorId?: DoorId
+  lockId?: LockId
+  method: HotelAccessMethod
+  actorId?: string
+  code?: string
+  cardUid?: string
 }
 
 export interface HotelAccessResponse {
-  granted: boolean;
-  result: string;
-  message: string;
-  logId: string;
+  granted: boolean
+  result: string
+  message: string
+  state: string
+  updatedAt: number
 }
 
-/**
- * attemptRoomAccess — the safe, simulator-first entry point for hotel rooms.
- * Call this from InteractionSystem, UI, or E-key handlers.
- */
 export async function attemptRoomAccess(req: HotelAccessRequest): Promise<HotelAccessResponse> {
-  if (!isAccessSimulatorOnly()) {
-    // Future real path will be here (Cloud Function call only)
-    console.warn('[HotelAccessService] Real hardware path not yet enabled (anti-casse). Falling back to simulator.');
-  }
-
-  const opts: LockAttemptOptions = {
-    doorId: req.doorId,
-    lockId: `${req.doorId}_l01`, // convention from registry
+  const result: HotelAccessResult = await makeAccessAttempt({
+    roomId: req.roomId,
     method: req.method,
     actorId: req.actorId,
-    providedCode: req.code,
-  };
-
-  const simResult: LockAttemptResult = await lockSimulator.attemptAccess(opts);
+    cardUid: req.cardUid,
+    pin: req.code,
+  })
 
   return {
-    granted: simResult.success,
-    result: simResult.result,
-    message: simResult.message,
-    logId: simResult.log.id,
-  };
+    granted: result.granted,
+    result: result.reason,
+    message: result.message,
+    state: result.state.state,
+    updatedAt: result.state.updatedAt,
+  }
 }
 
-// Convenience for E-interaction on a room door
-export async function attemptRoomEntry(roomId: RoomId, actorId?: string): Promise<HotelAccessResponse> {
-  // In real system we would look up the doorId from registry or Firestore
-  const doorId = `${roomId}_d01` as DoorId;
-
+export async function attemptRoomEntry(roomId: RoomId, actorId = 'player-local'): Promise<HotelAccessResponse> {
   return attemptRoomAccess({
     roomId,
-    doorId,
-    method: 'connected_app', // default for player E
+    method: 'connected_app',
     actorId,
-  });
+  })
+}
+
+export async function attemptRoomWithMagneticCard(roomId: RoomId, cardUid: string, actorId = 'player-local') {
+  return attemptRoomAccess({
+    roomId,
+    method: 'magnetic_card',
+    actorId,
+    cardUid,
+  })
+}
+
+export async function attemptRoomWithNumpad(roomId: RoomId, code: string, actorId = 'player-local') {
+  return attemptRoomAccess({
+    roomId,
+    method: 'numpad',
+    actorId,
+    code,
+  })
+}
+
+export function createHotelSecurityFirebaseSeed() {
+  return hotelRealtimeSecurity.createFirebaseSeed()
 }

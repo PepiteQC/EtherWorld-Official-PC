@@ -8,8 +8,7 @@
  * 4. Transition propre menu → jeu
  */
 
-import Game from './components/Game'
-import HUD from './components/HUD'
+import { Game, HUD } from './components/etherworld'
 import RayMarchingKinect from './components/kinect/RayMarchingKinect'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { loadSave, deleteSave, type SaveData } from './hooks/useSaveSystem'
@@ -381,7 +380,7 @@ function MenuScreen({ savedGame, onStart, onDeleteSave }: MenuScreenProps) {
         onClick={() => {
           // Switch to dedicated Kinect phase (full-screen canvas with Leva controls)
           // This launches the ray marching depth visualization
-          (window as any).setAppPhase?.('kinect') || setPhase('kinect')
+          (window as any).setAppPhase?.('kinect')
         }}
         style={{
           marginTop:     28,

@@ -2,8 +2,8 @@ import { useRef, useEffect, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import * as THREE from "three";
-import { startJob, canStartJob, getJobCooldownSec } from "../store/gameState";
-import type { BuildingDef } from "../data/quebecBuildings";
+import { startJob, canStartJob, getJobCooldownSec } from "../../store/gameState";
+import type { BuildingDef } from "../../data/quebecBuildings";
 
 // All interiors are placed far from the exterior world at Z=2000+
 const BASE = new THREE.Vector3(0, 0, 2000);

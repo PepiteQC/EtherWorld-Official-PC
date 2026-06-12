@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Html } from "@react-three/drei";
-import BUILDINGS, { type BuildingDef } from "../data/quebecBuildings";
+import BUILDINGS, { type BuildingDef } from "../../data/quebecBuildings";
 
 function BuildingMesh({ b }: { b: BuildingDef }) {
   const [w, h, d] = b.size;

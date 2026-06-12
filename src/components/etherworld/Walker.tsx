@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import * as THREE from "three";
-import type { DoorZone } from "../data/quebecBuildings";
+import type { DoorZone } from "../../data/quebecBuildings";
 
 enum Controls {
   forward = "forward",

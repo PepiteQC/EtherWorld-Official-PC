@@ -1,133 +1,203 @@
 /**
  * src/buildings/hotel/core/HotelRegistry.ts
- * Emplacement exact: /home/user/etherworld/src/buildings/hotel/core/HotelRegistry.ts
+ * Registre stable de l'hôtel EtherWorld.
  *
- * Central registry for the HÔTEL.
- * Generates exactly:
- * - 3 floors (level 0, 1, 2)
- * - 10 rooms per floor = 30 rooms total
- * - 5 rooms on the LEFT side of the central corridor
- * - 5 rooms on the RIGHT side of the central corridor
- * All IDs are stable and deterministic (no random generation for identification).
+ * - 3 étages
+ * - 10 chambres par étage = 30 chambres
+ * - IDs stables compatibles Firestore / userData Three.js
+ * - Portes + locks générées pour carte magnétique et numpad
  */
 
-import type { BuildingBase, FloorBase, RoomBase, DoorBase, LockBase } from '../../shared/types';
+import type { BuildingBase, DoorBase, FloorBase, LockBase, RoomBase, RoomId } from '../../shared/types'
+
+export const HOTEL_ARCH = {
+  totalWidth: 48,
+  totalDepth: 48,
+  floorHeight: 3.6,
+  floors: 3,
+  roomsPerFloor: 10,
+  roomsPerSide: 5,
+  corridorWidth: 4,
+  roomWidth: 7.2,
+  roomDepth: 7.4,
+  wallThickness: 0.22,
+  doorWidth: 1.05,
+  doorHeight: 2.35,
+} as const
 
 export const HOTEL_BUILDING: BuildingBase = {
-  id: 'hotel_main_2026',
-  type: 'hotel',
-  name: 'Hôtel EtherWorld',
+  id: 'hotel_main',
+  name: 'Hôtel EtherWorld — Accès Sécurisé',
+  origin: [-72, 0, 872],
   architectural: {
-    width: 48,
-    depth: 22,
-    height: 12,
-    wallThickness: 0.25,
-    floorThickness: 0.35,
-    corridorWidth: 3.8,
+    width: HOTEL_ARCH.totalWidth,
+    depth: HOTEL_ARCH.totalDepth,
+    height: HOTEL_ARCH.floorHeight,
+    wallThickness: HOTEL_ARCH.wallThickness,
+    doorWidth: HOTEL_ARCH.doorWidth,
+    doorHeight: HOTEL_ARCH.doorHeight,
+    corridorWidth: HOTEL_ARCH.corridorWidth,
+    roomWidth: HOTEL_ARCH.roomWidth,
+    roomDepth: HOTEL_ARCH.roomDepth,
   },
-  createdAt: Date.now(),
-  status: 'active',
-};
-
-// 3 floors
-export const HOTEL_FLOORS: FloorBase[] = [0, 1, 2].map((level) => ({
-  id: `hotel_main_f${String(level).padStart(2, '0')}`,
-  buildingId: HOTEL_BUILDING.id,
-  level,
-  name: level === 0 ? 'Rez-de-chaussée' : `Étage ${level}`,
-  architectural: {
-    width: HOTEL_BUILDING.architectural.width,
-    depth: HOTEL_BUILDING.architectural.depth,
-    corridorWidth: HOTEL_BUILDING.architectural.corridorWidth,
+  decorative: {
+    wallColor: '#2d313a',
+    floorColor: '#c8c0b4',
+    ceilingColor: '#171923',
+    trimColor: '#8b5cf6',
+    windowEmissiveIntensity: 0.38,
+    materialRoughness: 0.72,
+    materialMetalness: 0.12,
   },
-}));
-
-/**
- * Generates exactly 30 rooms:
- * - Floors 0,1,2 → rooms 101-110, 201-210, 301-310
- * - Left side: 101-105 / 201-205 / 301-305 (5 per floor)
- * - Right side: 106-110 / 206-210 / 306-310 (5 per floor)
- */
-export function generateHotelRooms(): RoomBase[] {
-  const rooms: RoomBase[] = [];
-
-  HOTEL_FLOORS.forEach((floor) => {
-    const floorNum = floor.level;
-
-    // LEFT side — 5 rooms
-    for (let i = 1; i <= 5; i++) {
-      const roomNum = 100 * (floorNum + 1) + i;
-      rooms.push({
-        id: `hotel_main_f${String(floorNum).padStart(2, '0')}_r${roomNum}`,
-        floorId: floor.id,
-        buildingId: HOTEL_BUILDING.id,
-        number: String(roomNum),
-        side: 'left',
-        architectural: { width: 5.2, depth: 6.8, height: 3.1 },
-        decorative: { wallColor: '#e8e0d5', floorMaterial: 'carpet_beige' },
-      });
-    }
-
-    // RIGHT side — 5 rooms
-    for (let i = 6; i <= 10; i++) {
-      const roomNum = 100 * (floorNum + 1) + i;
-      rooms.push({
-        id: `hotel_main_f${String(floorNum).padStart(2, '0')}_r${roomNum}`,
-        floorId: floor.id,
-        buildingId: HOTEL_BUILDING.id,
-        number: String(roomNum),
-        side: 'right',
-        architectural: { width: 5.2, depth: 6.8, height: 3.1 },
-        decorative: { wallColor: '#e8e0d5', floorMaterial: 'carpet_beige' },
-      });
-    }
-  });
-
-  return rooms;
 }
 
-export const HOTEL_ROOMS: RoomBase[] = generateHotelRooms(); // Exactly 30 rooms
+export const HOTEL_RECEPTION = {
+  id: 'hotel_main_reception',
+  position: [0, 0, HOTEL_ARCH.totalDepth / 2 + 6] as [number, number, number],
+  size: [16, 4.4, 8] as [number, number, number],
+}
 
-/**
- * Generates one main door + one connected lock per room.
- */
+export const HOTEL_ELEVATOR_SHAFT = {
+  id: 'hotel_main_elevator_shaft',
+  position: [HOTEL_ARCH.totalWidth / 2 - 4, 0, 0] as [number, number, number],
+  size: [3, HOTEL_ARCH.floorHeight * HOTEL_ARCH.floors + 1.5, 3] as [number, number, number],
+}
+
+export const HOTEL_FLOORS: FloorBase[] = Array.from({ length: HOTEL_ARCH.floors }, (_, level) => ({
+  id: `hotel_main_f${level}`,
+  buildingId: 'hotel_main',
+  level,
+  roomCount: HOTEL_ARCH.roomsPerFloor,
+  architectural: {
+    height: HOTEL_ARCH.floorHeight,
+    corridorWidth: HOTEL_ARCH.corridorWidth,
+  },
+  decorative: {
+    floorColor: level === 0 ? '#d4c8b0' : '#b8afa3',
+    trimColor: level === 0 ? '#f59e0b' : '#8b5cf6',
+  },
+}))
+
+function roomNumberFor(level: number, index: number): number {
+  return (level + 1) * 100 + index + 1
+}
+
+export function generateHotelRooms(): RoomBase[] {
+  const rooms: RoomBase[] = []
+
+  for (const floor of HOTEL_FLOORS) {
+    for (let i = 0; i < HOTEL_ARCH.roomsPerFloor; i++) {
+      const number = roomNumberFor(floor.level, i)
+      const side = i < HOTEL_ARCH.roomsPerSide ? 'left' : 'right'
+      rooms.push({
+        id: `${floor.id}_r${number}` as RoomId,
+        floorId: floor.id,
+        buildingId: 'hotel_main',
+        number,
+        side,
+        architectural: {
+          roomWidth: HOTEL_ARCH.roomWidth,
+          roomDepth: HOTEL_ARCH.roomDepth,
+          height: HOTEL_ARCH.floorHeight,
+        },
+        hasSafe: true,
+        decorative: {
+          wallColor: side === 'left' ? '#362b25' : '#2b2f3a',
+          floorColor: '#c8c0b4',
+          trimColor: floor.level === 2 ? '#f59e0b' : '#8b5cf6',
+        },
+      })
+    }
+  }
+
+  return rooms
+}
+
+export const HOTEL_ROOMS: RoomBase[] = generateHotelRooms()
+
 export function generateHotelDoorsAndLocks(): { doors: DoorBase[]; locks: LockBase[] } {
-  const doors: DoorBase[] = [];
-  const locks: LockBase[] = [];
+  const doors: DoorBase[] = []
+  const locks: LockBase[] = []
 
-  HOTEL_ROOMS.forEach((room) => {
-    const doorId = `${room.id}_door_main`;
-    const lockId = `lock_${room.id}_main`;
+  for (const room of HOTEL_ROOMS) {
+    const doorId = `${room.id}_dmain` as DoorBase['id']
+    const lockId = `${doorId}_lmain` as LockBase['id']
+    const isLeft = room.side === 'left'
 
     doors.push({
       id: doorId,
       roomId: room.id,
-      buildingId: HOTEL_BUILDING.id,
-      type: 'main',
+      buildingId: 'hotel_main',
+      architectural: {
+        doorWidth: HOTEL_ARCH.doorWidth,
+        doorHeight: HOTEL_ARCH.doorHeight,
+      },
+      position: [0, 0, 0],
+      rotationY: isLeft ? Math.PI / 2 : -Math.PI / 2,
       lockId,
-      position: { x: 0, y: 0, z: 0, rotationY: 0 }, // position calculated later by modules
-    });
+      decorative: {
+        trimColor: room.side === 'left' ? '#22c55e' : '#38bdf8',
+      },
+    })
 
     locks.push({
       id: lockId,
       doorId,
-      buildingId: HOTEL_BUILDING.id,
-      type: 'connected', // keycard + keypad + future real hardware
-      status: 'active',
-    });
-  });
+      buildingId: 'hotel_main',
+      type: 'connected',
+      simulatorOnly: true,
+    })
+  }
 
-  return { doors, locks };
+  return { doors, locks }
 }
 
-export const { doors: HOTEL_DOORS, locks: HOTEL_LOCKS } = generateHotelDoorsAndLocks();
+export const { doors: HOTEL_DOORS, locks: HOTEL_LOCKS } = generateHotelDoorsAndLocks()
+
+export const HOTEL_SECURITY_DEFAULTS = {
+  defaultPin: '2026',
+  defaultCardUid: 'EW-GUEST-2026',
+  masterCardUid: 'EW-MASTER-0001',
+  lockoutMs: 15_000,
+  autoRelockMs: 8_000,
+} as const
 
 export function getHotelRoomById(id: string): RoomBase | undefined {
-  return HOTEL_ROOMS.find((r) => r.id === id);
+  return HOTEL_ROOMS.find((room) => room.id === id)
+}
+
+export function getHotelDoorByRoomId(roomId: string): DoorBase | undefined {
+  return HOTEL_DOORS.find((door) => door.roomId === roomId)
+}
+
+export function getHotelLockByDoorId(doorId: string): LockBase | undefined {
+  return HOTEL_LOCKS.find((lock) => lock.doorId === doorId)
 }
 
 export function getHotelFloorByLevel(level: number): FloorBase | undefined {
-  return HOTEL_FLOORS.find((f) => f.level === level);
+  return HOTEL_FLOORS.find((floor) => floor.level === level)
 }
 
-export const TOTAL_HOTEL_ROOMS = HOTEL_ROOMS.length; // 30
+export const TOTAL_HOTEL_ROOMS = HOTEL_ROOMS.length
+
+export const HotelRegistry = {
+  building: HOTEL_BUILDING,
+  floors: HOTEL_FLOORS,
+  rooms: HOTEL_ROOMS,
+  doors: HOTEL_DOORS,
+  locks: HOTEL_LOCKS,
+  security: HOTEL_SECURITY_DEFAULTS,
+  getRoomById: getHotelRoomById,
+  getDoorByRoomId: getHotelDoorByRoomId,
+  getLockByDoorId: getHotelLockByDoorId,
+  getFloorByLevel: getHotelFloorByLevel,
+  toFirebaseSeed: () => ({
+    building: HOTEL_BUILDING,
+    floors: HOTEL_FLOORS,
+    rooms: HOTEL_ROOMS,
+    doors: HOTEL_DOORS,
+    locks: HOTEL_LOCKS,
+    security: HOTEL_SECURITY_DEFAULTS,
+    generatedAt: new Date().toISOString(),
+  }),
+}
